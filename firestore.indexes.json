@@ -1,0 +1,71 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "interviewReports",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "metadata.ipId", "mode": "ASCENDING" },
+        { "fieldPath": "metadata.submitted", "mode": "ASCENDING" },
+        { "fieldPath": "metadata.updatedAt", "mode": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "interviewReports",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "sectionA.interviewDate", "mode": "DESCENDING" },
+        { "fieldPath": "metadata.submitted", "mode": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "interviewReports",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "sectionA.policeStation", "mode": "ASCENDING" },
+        { "fieldPath": "sectionA.interviewDate", "mode": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "interviewReports",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "metadata.submitted", "mode": "ASCENDING" },
+        { "fieldPath": "metadata.createdAt", "mode": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "interviewReports",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "sectionBPartA.dateOfBirth", "mode": "ASCENDING" },
+        { "fieldPath": "sectionA.interviewDate", "mode": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "interviewReports",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "outcome.interviewOutcome", "mode": "ASCENDING" },
+        { "fieldPath": "sectionA.interviewDate", "mode": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "interviewReports",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "ipConcerns.hasConcerns", "mode": "ASCENDING" },
+        { "fieldPath": "metadata.submitted", "mode": "ASCENDING" },
+        { "fieldPath": "sectionA.interviewDate", "mode": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "interviewReports",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "metadata.ipId", "mode": "ASCENDING" },
+        { "fieldPath": "metadata.updatedAt", "mode": "DESCENDING" }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}

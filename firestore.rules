@@ -1,0 +1,85 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isStaff() {
+      return isAuthenticated() && 
+             request.auth.token.role == 'staff';
+    }
+    
+    function isAdmin() {
+      return isAuthenticated() && 
+             request.auth.token.role == 'admin';
+    }
+    
+    function hasAdminRole() {
+      return isAuthenticated() && 
+             request.auth.token.role == 'admin';
+    }
+    
+    function isReportOwner() {
+      return isAuthenticated() && 
+             request.auth.uid == resource.data.metadata.ipId;
+    }
+    
+    function isValidReport() {
+      let data = request.resource.data;
+      return data.keys().hasAll(['sectionA', 'metadata']) &&
+             data.metadata.keys().hasAll(['createdAt', 'updatedAt', 'draft', 'submitted']);
+    }
+    
+    match /interviewReports/{reportId} {
+      allow create: if isAuthenticated() && 
+                       isValidReport() &&
+                       request.resource.data.metadata.ipId == request.auth.uid &&
+                       request.resource.data.metadata.submitted == false;
+      
+      allow read: if isAuthenticated() && (
+                      isReportOwner() ||
+                      isStaff()
+                   );
+      
+      allow update: if isAuthenticated() && (
+                       (isReportOwner() &&
+                        resource.data.metadata.submitted == false &&
+                        request.resource.data.metadata.ipId == resource.data.metadata.ipId &&
+                        request.resource.data.metadata.createdAt == resource.data.metadata.createdAt) ||
+                       (isStaff() &&
+                        request.resource.data.metadata.ipId == resource.data.metadata.ipId &&
+                        request.resource.data.metadata.createdAt == resource.data.metadata.createdAt &&
+                        (request.resource.data.metadata.editHistory != null ||
+                         request.resource.data.metadata.deleted != null))
+                    );
+      
+      allow delete: if isAuthenticated() && (
+                       (isReportOwner() && resource.data.metadata.submitted == false && !isAdmin())
+                    );
+    }
+    
+    match /users/{userId} {
+      allow read: if isAuthenticated() && (
+                      request.auth.uid == userId ||
+                      hasAdminRole()
+                   );
+      allow create: if isAuthenticated() && (
+                      request.auth.uid == userId &&
+                      request.resource.data.keys().hasAll(['email', 'name', 'roles', 'createdAt', 'updatedAt'])
+                   );
+      allow update: if isAuthenticated() && (
+                      (request.auth.uid == userId && 
+                       request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name', 'phoneNumber', 'updatedAt'])) ||
+                      hasAdminRole()
+                   );
+    }
+    
+    match /auditLogs/{logId} {
+      allow read: if isStaff() || hasAdminRole();
+      allow create: if isAuthenticated();
+    }
+  }
+}
