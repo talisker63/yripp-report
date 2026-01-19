@@ -41,6 +41,17 @@ function EditReportContent() {
 
       const isOwner = report.metadata?.ipId === user.id;
       const isStaff = user.roles?.includes("staff") || false;
+      const isSubmitted = report.metadata?.submitted || false;
+
+      if (isOwner && isSubmitted) {
+        router.push("/reports");
+        return;
+      }
+
+      if (isStaff && !isOwner && !isSubmitted) {
+        router.push("/reports");
+        return;
+      }
 
       if (!isOwner && !isStaff) {
         router.push("/reports");

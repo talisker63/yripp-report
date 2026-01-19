@@ -8,23 +8,41 @@ service cloud.firestore {
     }
     
     function isStaff() {
-      return isAuthenticated() && 
-             request.auth.token.role == 'staff';
+      return isAuthenticated() && (
+        request.auth.token.role == 'staff' ||
+        (request.auth.token.roles != null && request.auth.token.roles.hasAny(['staff']))
+      );
     }
     
     function isAdmin() {
-      return isAuthenticated() && 
-             request.auth.token.role == 'admin';
+      return isAuthenticated() && (
+        request.auth.token.role == 'admin' ||
+        (request.auth.token.roles != null && request.auth.token.roles.hasAny(['admin']))
+      );
     }
     
     function hasAdminRole() {
-      return isAuthenticated() && 
-             request.auth.token.role == 'admin';
+      return isAuthenticated() && (
+        request.auth.token.role == 'admin' ||
+        (request.auth.token.roles != null && request.auth.token.roles.hasAny(['admin']))
+      );
     }
     
     function isReportOwner() {
       return isAuthenticated() && 
              request.auth.uid == resource.data.metadata.ipId;
+    }
+    
+    function canOwnerRead() {
+      return isAuthenticated() && 
+             isReportOwner() &&
+             resource.data.metadata.submitted == false;
+    }
+    
+    function canStaffRead() {
+      return isAuthenticated() && 
+             isStaff() &&
+             (resource.data.metadata.submitted == true || isReportOwner());
     }
     
     function isValidReport() {
@@ -39,10 +57,9 @@ service cloud.firestore {
                        request.resource.data.metadata.ipId == request.auth.uid &&
                        request.resource.data.metadata.submitted == false;
       
-      allow read: if isAuthenticated() && (
-                      isReportOwner() ||
-                      isStaff()
-                   );
+      allow read: if canOwnerRead() || canStaffRead();
+      
+      allow list: if isAuthenticated();
       
       allow update: if isAuthenticated() && (
                        (isReportOwner() &&
@@ -50,6 +67,7 @@ service cloud.firestore {
                         request.resource.data.metadata.ipId == resource.data.metadata.ipId &&
                         request.resource.data.metadata.createdAt == resource.data.metadata.createdAt) ||
                        (isStaff() &&
+                        resource.data.metadata.submitted == true &&
                         request.resource.data.metadata.ipId == resource.data.metadata.ipId &&
                         request.resource.data.metadata.createdAt == resource.data.metadata.createdAt &&
                         (request.resource.data.metadata.editHistory != null ||
@@ -66,6 +84,7 @@ service cloud.firestore {
                       request.auth.uid == userId ||
                       hasAdminRole()
                    );
+      allow list: if isAuthenticated() && hasAdminRole();
       allow create: if isAuthenticated() && (
                       request.auth.uid == userId &&
                       request.resource.data.keys().hasAll(['email', 'name', 'roles', 'createdAt', 'updatedAt'])

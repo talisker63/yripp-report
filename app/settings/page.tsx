@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import { useAuth } from "@/lib/auth/context";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { getUserProfile, updateUserProfile } from "@/lib/firebase/users";
@@ -135,34 +134,11 @@ function SettingsContent() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <header className="bg-blue-600 text-white p-4 shadow-md">
-        <div className="max-w-4xl mx-auto flex items-center justify-between">
-          <div>
-            <h1 className="text-xl font-bold">User Settings</h1>
-            <p className="text-sm opacity-90">Manage your account</p>
-          </div>
-          <div className="flex items-center gap-4">
-            <Link
-              href="/help"
-              className="text-white hover:text-blue-200 p-2 rounded hover:bg-white/10"
-              title="Help"
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-            </Link>
-            <Button
-              variant="outline"
-              onClick={() => router.push("/reports")}
-              className="bg-white/10 border-white/30 text-white hover:bg-white/20"
-            >
-              Back to Reports
-            </Button>
-          </div>
+      <div className="max-w-4xl mx-auto p-4 pt-6">
+        <div className="mb-6">
+          <h1 className="text-3xl font-bold text-gray-900">User Settings</h1>
+          <p className="text-sm text-gray-600 mt-1">Manage your account</p>
         </div>
-      </header>
-
-      <div className="max-w-4xl mx-auto p-4">
         {error && (
           <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
             {error}

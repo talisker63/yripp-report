@@ -2,514 +2,284 @@ import { db } from "./config";
 import {
   collection,
   doc,
-  addDoc,
-  updateDoc,
   getDoc,
   getDocs,
-  deleteDoc,
+  setDoc,
+  updateDoc,
   query,
   where,
   orderBy,
-  limit,
   Timestamp,
-  serverTimestamp,
-  QueryConstraint,
 } from "firebase/firestore";
 import { YRIPPFormData } from "@/lib/types/yripp-form";
-import { createInitialFormData } from "@/lib/yripp/initialFormData";
+import { UserRole } from "@/lib/auth/types";
 
-const COLLECTION_NAME = "interviewReports";
+const REPORTS_COLLECTION = "interviewReports";
 
-export interface EditAudit {
-  editedBy: string;
-  editedByName: string;
-  editedAt: string;
-  editReason: string;
-  role: "admin" | "staff";
-}
+export type ReportDocument = YRIPPFormData & { id: string };
 
-export interface DeleteAudit {
-  deletedBy: string;
-  deletedByName: string;
-  deletedAt: string;
-  deleteReason: string;
-  role: "staff";
-}
+function stripUndefinedDeep<T>(value: T): T {
+  if (value === undefined) return value;
 
-export interface ReportMetadata {
-  id: string;
-  createdAt: Date;
-  updatedAt: Date;
-  ipId?: string;
-  ipName?: string;
-  draft: boolean;
-  submitted: boolean;
-  submittedAt?: Date;
-  editHistory?: EditAudit[];
-  deleted?: DeleteAudit;
-}
-
-export interface ReportDocument extends YRIPPFormData {
-  id?: string;
-}
-
-function convertToFirestore(data: YRIPPFormData): any {
-  const firestoreData = JSON.parse(JSON.stringify(data));
-  
-  if (firestoreData.metadata?.createdAt && typeof firestoreData.metadata.createdAt === 'string') {
-    firestoreData.metadata.createdAt = Timestamp.fromDate(
-      new Date(firestoreData.metadata.createdAt)
-    );
+  if (Array.isArray(value)) {
+    return value
+      .map((item) => stripUndefinedDeep(item))
+      .filter((item) => item !== undefined) as any;
   }
-  
-  if (firestoreData.metadata?.updatedAt && typeof firestoreData.metadata.updatedAt === 'string') {
-    firestoreData.metadata.updatedAt = Timestamp.fromDate(
-      new Date(firestoreData.metadata.updatedAt)
-    );
-  }
-  
-  if (firestoreData.sectionA?.interviewDate && typeof firestoreData.sectionA.interviewDate === 'string') {
-    const date = new Date(firestoreData.sectionA.interviewDate);
-    if (!isNaN(date.getTime())) {
-      firestoreData.sectionA.interviewDate = Timestamp.fromDate(date);
+
+  if (value && typeof value === "object") {
+    if (value instanceof Timestamp) return value;
+
+    const out: Record<string, unknown> = {};
+    for (const [key, v] of Object.entries(value as Record<string, unknown>)) {
+      if (v === undefined) continue;
+      const cleaned = stripUndefinedDeep(v);
+      if (cleaned === undefined) continue;
+      out[key] = cleaned;
     }
-  }
-  
-  if (firestoreData.sectionBPartA?.dateOfBirth && typeof firestoreData.sectionBPartA.dateOfBirth === 'string') {
-    const date = new Date(firestoreData.sectionBPartA.dateOfBirth);
-    if (!isNaN(date.getTime())) {
-      firestoreData.sectionBPartA.dateOfBirth = Timestamp.fromDate(date);
-    }
-  }
-  
-  return firestoreData;
-}
-
-function convertFromFirestore(data: any): ReportDocument {
-  const report = JSON.parse(JSON.stringify(data));
-  
-  if (report.metadata?.createdAt) {
-    if (report.metadata.createdAt.toDate) {
-      report.metadata.createdAt = report.metadata.createdAt.toDate().toISOString();
-    } else if (report.metadata.createdAt instanceof Timestamp) {
-      report.metadata.createdAt = report.metadata.createdAt.toDate().toISOString();
-    }
-  }
-  
-  if (report.metadata?.updatedAt) {
-    if (report.metadata.updatedAt.toDate) {
-      report.metadata.updatedAt = report.metadata.updatedAt.toDate().toISOString();
-    } else if (report.metadata.updatedAt instanceof Timestamp) {
-      report.metadata.updatedAt = report.metadata.updatedAt.toDate().toISOString();
-    }
-  }
-  
-  if (report.sectionA?.interviewDate) {
-    if (report.sectionA.interviewDate.toDate) {
-      report.sectionA.interviewDate = report.sectionA.interviewDate.toDate().toISOString().split('T')[0];
-    } else if (report.sectionA.interviewDate instanceof Timestamp) {
-      report.sectionA.interviewDate = report.sectionA.interviewDate.toDate().toISOString().split('T')[0];
-    }
-  }
-  
-  if (report.sectionBPartA?.dateOfBirth) {
-    if (report.sectionBPartA.dateOfBirth.toDate) {
-      report.sectionBPartA.dateOfBirth = report.sectionBPartA.dateOfBirth.toDate().toISOString().split('T')[0];
-    } else if (report.sectionBPartA.dateOfBirth instanceof Timestamp) {
-      report.sectionBPartA.dateOfBirth = report.sectionBPartA.dateOfBirth.toDate().toISOString().split('T')[0];
-    }
-  }
-  
-  if (report.metadata?.submittedAt) {
-    if (report.metadata.submittedAt.toDate) {
-      report.metadata.submittedAt = report.metadata.submittedAt.toDate().toISOString();
-    } else if (report.metadata.submittedAt instanceof Timestamp) {
-      report.metadata.submittedAt = report.metadata.submittedAt.toDate().toISOString();
-    }
+    return out as T;
   }
 
-  if (report.metadata?.editHistory && Array.isArray(report.metadata.editHistory)) {
-    report.metadata.editHistory = report.metadata.editHistory.map((edit: any) => ({
-      ...edit,
-      editedAt: typeof edit.editedAt === 'string' ? edit.editedAt : 
-                edit.editedAt?.toDate ? edit.editedAt.toDate().toISOString() :
-                edit.editedAt instanceof Timestamp ? edit.editedAt.toDate().toISOString() :
-                edit.editedAt,
-    }));
-  }
-
-  if (report.metadata?.deleted?.deletedAt) {
-    const deletedAt = report.metadata.deleted.deletedAt;
-    report.metadata.deleted.deletedAt =
-      typeof deletedAt === "string"
-        ? deletedAt
-        : deletedAt?.toDate
-          ? deletedAt.toDate().toISOString()
-          : deletedAt instanceof Timestamp
-            ? deletedAt.toDate().toISOString()
-            : deletedAt;
-  }
-  
-  return report;
-}
-
-export async function createDraftReport(
-  reportData: YRIPPFormData,
-  userId: string,
-  userName?: string
-): Promise<string> {
-  if (!db) {
-    throw new Error("Firestore is not initialized. This function must be called from the client side.");
-  }
-  
-  const report: any = convertToFirestore(reportData);
-  
-  report.metadata = {
-    ...reportData.metadata,
-    ipId: userId,
-    ipName: userName || reportData.metadata.ipName,
-    createdAt: serverTimestamp(),
-    updatedAt: serverTimestamp(),
-    draft: true,
-    submitted: false,
-  };
-  
-  const docRef = await addDoc(collection(db, COLLECTION_NAME), report);
-  return docRef.id;
-}
-
-export async function updateDraftReport(
-  reportId: string,
-  reportData: Partial<YRIPPFormData>,
-  userId: string,
-  userRoles: string[] = [],
-  editReason?: string,
-  userName?: string
-): Promise<void> {
-  if (!db) {
-    throw new Error("Firestore is not initialized. This function must be called from the client side.");
-  }
-  
-  const reportRef = doc(db, COLLECTION_NAME, reportId);
-  const existingReport = await getDoc(reportRef);
-  
-  if (!existingReport.exists()) {
-    throw new Error("Report not found");
-  }
-  
-  const existingData = existingReport.data();
-  const isOwner = existingData.metadata?.ipId === userId;
-  const isStaff = userRoles.includes("staff");
-  const isSubmitted = existingData.metadata?.submitted || false;
-  
-  if (!isOwner && !isStaff) {
-    throw new Error("Unauthorized to update this report");
-  }
-  
-  if (isSubmitted && isOwner) {
-    throw new Error("You cannot edit a submitted report. Only staff members can edit submitted reports.");
-  }
-  
-  const firestoreData = convertToFirestore(reportData as YRIPPFormData);
-  const updateData: any = { ...firestoreData };
-  
-  const metadataUpdate: any = {
-    ...firestoreData.metadata,
-    updatedAt: serverTimestamp(),
-  };
-  
-  if (isStaff && !isOwner && editReason) {
-    const editAudit: EditAudit = {
-      editedBy: userId,
-      editedByName: userName || "Unknown",
-      editedAt: new Date().toISOString(),
-      editReason: editReason,
-      role: "staff",
-    };
-    
-    const existingHistory = existingData.metadata?.editHistory || [];
-    metadataUpdate.editHistory = [...existingHistory, editAudit];
-  }
-  
-  updateData.metadata = metadataUpdate;
-  
-  await updateDoc(reportRef, updateData);
-}
-
-export async function submitReport(
-  reportId: string,
-  userId: string
-): Promise<void> {
-  if (!db) {
-    throw new Error("Firestore is not initialized. This function must be called from the client side.");
-  }
-  
-  const reportRef = doc(db, COLLECTION_NAME, reportId);
-  
-  await updateDoc(reportRef, {
-    "metadata.submitted": true,
-    "metadata.draft": false,
-    "metadata.submittedAt": serverTimestamp(),
-    "metadata.updatedAt": serverTimestamp(),
-  });
-}
-
-export async function deleteDraftReport(
-  reportId: string,
-  userId: string,
-  userRoles: string[] = []
-): Promise<void> {
-  if (!db) {
-    throw new Error("Firestore is not initialized. This function must be called from the client side.");
-  }
-
-  if (userRoles.includes("admin") || userRoles.includes("staff")) {
-    throw new Error("Unauthorized to delete this report");
-  }
-
-  const reportRef = doc(db, COLLECTION_NAME, reportId);
-  const existingReport = await getDoc(reportRef);
-
-  if (!existingReport.exists()) {
-    throw new Error("Report not found");
-  }
-
-  const existingData = existingReport.data();
-  const isOwner = existingData.metadata?.ipId === userId;
-  const isSubmitted = existingData.metadata?.submitted || false;
-
-  if (!isOwner || isSubmitted) {
-    throw new Error("Unauthorized to delete this report");
-  }
-
-  await deleteDoc(reportRef);
-}
-
-export async function deleteReportContentAsStaff(
-  reportId: string,
-  deletedBy: { id: string; name?: string | null; roles?: string[] },
-  deleteReason: string
-): Promise<void> {
-  if (!db) {
-    throw new Error("Firestore is not initialized. This function must be called from the client side.");
-  }
-
-  const roles = deletedBy.roles || [];
-
-  if (!roles.includes("staff") || roles.includes("admin")) {
-    throw new Error("Unauthorized to delete this report");
-  }
-
-  if (!deleteReason.trim()) {
-    throw new Error("Delete reason is required");
-  }
-
-  const reportRef = doc(db, COLLECTION_NAME, reportId);
-  const existingReport = await getDoc(reportRef);
-
-  if (!existingReport.exists()) {
-    throw new Error("Report not found");
-  }
-
-  const existingData = existingReport.data();
-
-  if (existingData.metadata?.deleted) {
-    throw new Error("Report content has already been deleted");
-  }
-
-  const empty = createInitialFormData();
-  const deletedAt = new Date().toISOString();
-  const deletedByName = deletedBy.name || "Unknown";
-
-  const deleteAudit: DeleteAudit = {
-    deletedBy: deletedBy.id,
-    deletedByName,
-    deletedAt,
-    deleteReason: deleteReason.trim(),
-    role: "staff",
-  };
-
-  const replacementNote = `Report content deleted by ${deletedByName} on ${new Date(deletedAt).toLocaleString("en-AU")}. Reason: ${deleteAudit.deleteReason}`;
-
-  await updateDoc(reportRef, {
-    sectionBPartA: empty.sectionBPartA,
-    sectionC: empty.sectionC,
-    interview: empty.interview,
-    outcome: empty.outcome,
-    ipConcerns: empty.ipConcerns,
-    sectionBPartB: empty.sectionBPartB,
-    sectionE: empty.sectionE,
-    sectionF: { ...empty.sectionF, additionalNotes: replacementNote },
-    officeUse: empty.officeUse,
-    "metadata.deleted": deleteAudit,
-    "metadata.updatedAt": serverTimestamp(),
-  });
+  return value;
 }
 
 export async function getReport(reportId: string): Promise<ReportDocument | null> {
   if (!db) {
-    throw new Error("Firestore is not initialized. This function must be called from the client side.");
+    throw new Error("Firestore is not initialized");
   }
-  
-  const reportRef = doc(db, COLLECTION_NAME, reportId);
+
+  const reportRef = doc(db, REPORTS_COLLECTION, reportId);
   const reportSnap = await getDoc(reportRef);
-  
+
   if (!reportSnap.exists()) {
     return null;
   }
-  
+
+  const data = reportSnap.data();
   return {
     id: reportSnap.id,
-    ...convertFromFirestore(reportSnap.data()),
-  };
-}
-
-export async function getDraftsByUser(userId: string): Promise<ReportDocument[]> {
-  if (!db) {
-    throw new Error("Firestore is not initialized. This function must be called from the client side.");
-  }
-  
-  const q = query(
-    collection(db, COLLECTION_NAME),
-    where("metadata.ipId", "==", userId),
-    where("metadata.submitted", "==", false),
-    orderBy("metadata.updatedAt", "desc")
-  );
-  
-  const querySnapshot = await getDocs(q);
-  return querySnapshot.docs.map((doc) => ({
-    id: doc.id,
-    ...convertFromFirestore(doc.data()),
-  }));
+    ...data,
+    metadata: {
+      ...(data.metadata || {}),
+      createdAt: data.metadata?.createdAt?.toDate?.()?.toISOString() || new Date().toISOString(),
+      updatedAt: data.metadata?.updatedAt?.toDate?.()?.toISOString() || new Date().toISOString(),
+      submittedAt: data.metadata?.submittedAt?.toDate?.()?.toISOString(),
+    },
+  } as ReportDocument;
 }
 
 export async function getReportsByUser(
   userId: string,
-  userRoles: string[]
+  userRoles: UserRole[]
 ): Promise<ReportDocument[]> {
   if (!db) {
-    throw new Error("Firestore is not initialized. This function must be called from the client side.");
+    throw new Error("Firestore is not initialized");
   }
-  
+
   const isStaff = userRoles.includes("staff");
-  
+  const isAdmin = userRoles.includes("admin");
+
+  const transformDoc = (doc: any): ReportDocument => {
+    const data = doc.data();
+    return {
+      id: doc.id,
+      ...data,
+      metadata: {
+        ...(data.metadata || {}),
+        createdAt: data.metadata?.createdAt?.toDate?.()?.toISOString() || new Date().toISOString(),
+        updatedAt: data.metadata?.updatedAt?.toDate?.()?.toISOString() || new Date().toISOString(),
+        submittedAt: data.metadata?.submittedAt?.toDate?.()?.toISOString(),
+      },
+    } as ReportDocument;
+  };
+
   if (isStaff) {
-    const q = query(
-      collection(db, COLLECTION_NAME),
+    const myDraftsQuery = query(
+      collection(db, REPORTS_COLLECTION),
+      where("metadata.ipId", "==", userId),
+      where("metadata.submitted", "==", false),
       orderBy("metadata.updatedAt", "desc")
     );
-    const querySnapshot = await getDocs(q);
-    return querySnapshot.docs.map((doc) => ({
-      id: doc.id,
-      ...convertFromFirestore(doc.data()),
-    }));
-  }
-  
-  const q = query(
-    collection(db, COLLECTION_NAME),
-    where("metadata.ipId", "==", userId),
-    orderBy("metadata.updatedAt", "desc")
-  );
-  
-  const querySnapshot = await getDocs(q);
-  return querySnapshot.docs.map((doc) => ({
-    id: doc.id,
-    ...convertFromFirestore(doc.data()),
-  }));
-}
 
-export async function getReportsByDateRange(
-  startDate: Date,
-  endDate: Date,
-  submittedOnly: boolean = true
-): Promise<ReportDocument[]> {
-  if (!db) {
-    throw new Error("Firestore is not initialized. This function must be called from the client side.");
-  }
-  
-  const constraints: QueryConstraint[] = [
-    orderBy("sectionA.interviewDate", "desc"),
-  ];
-  
-  if (submittedOnly) {
-    constraints.unshift(where("metadata.submitted", "==", true));
-  }
-  
-  const q = query(collection(db, COLLECTION_NAME), ...constraints);
-  const querySnapshot = await getDocs(q);
-  
-  return querySnapshot.docs
-    .map((doc) => ({
-      id: doc.id,
-      ...convertFromFirestore(doc.data()),
-    }))
-    .filter((report) => {
-      if (!report.sectionA?.interviewDate) return false;
-      const interviewDate = new Date(report.sectionA.interviewDate);
-      return interviewDate >= startDate && interviewDate <= endDate;
+    const allSubmittedQuery = query(
+      collection(db, REPORTS_COLLECTION),
+      where("metadata.submitted", "==", true),
+      orderBy("metadata.updatedAt", "desc")
+    );
+
+    const [myDraftsSnapshot, allSubmittedSnapshot] = await Promise.all([
+      getDocs(myDraftsQuery),
+      getDocs(allSubmittedQuery),
+    ]);
+
+    const myDrafts = myDraftsSnapshot.docs.map(transformDoc);
+    const allSubmitted = allSubmittedSnapshot.docs.map(transformDoc);
+
+    const combined = [...myDrafts, ...allSubmitted];
+    combined.sort((a, b) => {
+      const dateA = new Date(a.metadata.updatedAt || 0).getTime();
+      const dateB = new Date(b.metadata.updatedAt || 0).getTime();
+      return dateB - dateA;
     });
+
+    return combined;
+  } else {
+    const q = query(
+      collection(db, REPORTS_COLLECTION),
+      where("metadata.ipId", "==", userId),
+      where("metadata.submitted", "==", false),
+      orderBy("metadata.updatedAt", "desc")
+    );
+
+    const querySnapshot = await getDocs(q);
+    return querySnapshot.docs.map(transformDoc);
+  }
 }
 
-export async function getReportsByPoliceStation(
-  policeStation: string,
-  limitCount: number = 50
-): Promise<ReportDocument[]> {
+export async function createReport(
+  reportId: string,
+  data: YRIPPFormData,
+  userId: string
+): Promise<void> {
   if (!db) {
-    throw new Error("Firestore is not initialized. This function must be called from the client side.");
+    throw new Error("Firestore is not initialized");
   }
-  
-  const q = query(
-    collection(db, COLLECTION_NAME),
-    where("sectionA.policeStation", "==", policeStation),
-    where("metadata.submitted", "==", true),
-    orderBy("sectionA.interviewDate", "desc"),
-    limit(limitCount)
-  );
-  
-  const querySnapshot = await getDocs(q);
-  return querySnapshot.docs.map((doc) => ({
-    id: doc.id,
-    ...convertFromFirestore(doc.data()),
-  }));
+
+  const reportRef = doc(db, REPORTS_COLLECTION, reportId);
+  const { submittedAt: _, ...metadataWithoutSubmittedAt } = data.metadata || {};
+  const metadata: any = {
+    ...metadataWithoutSubmittedAt,
+    ipId: userId,
+    createdAt: Timestamp.fromDate(new Date(data.metadata?.createdAt || new Date().toISOString())),
+    updatedAt: Timestamp.fromDate(new Date(data.metadata?.updatedAt || new Date().toISOString())),
+  };
+
+  if (data.metadata?.submittedAt) {
+    metadata.submittedAt = Timestamp.fromDate(new Date(data.metadata.submittedAt));
+  }
+
+  const reportData = {
+    ...data,
+    metadata,
+  };
+
+  await setDoc(reportRef, stripUndefinedDeep(reportData));
 }
 
-export async function getReportsWithConcerns(
-  limitCount: number = 50
-): Promise<ReportDocument[]> {
+export async function createDraftReport(
+  data: YRIPPFormData,
+  userId: string,
+  userName?: string
+): Promise<string> {
   if (!db) {
-    throw new Error("Firestore is not initialized. This function must be called from the client side.");
+    throw new Error("Firestore is not initialized");
   }
+
+  const reportRef = doc(collection(db, REPORTS_COLLECTION));
+  const reportId = reportRef.id;
   
-  const q = query(
-    collection(db, COLLECTION_NAME),
-    where("ipConcerns.hasConcerns", "==", "yes"),
-    where("metadata.submitted", "==", true),
-    orderBy("sectionA.interviewDate", "desc"),
-    limit(limitCount)
-  );
-  
-  const querySnapshot = await getDocs(q);
-  return querySnapshot.docs.map((doc) => ({
-    id: doc.id,
-    ...convertFromFirestore(doc.data()),
-  }));
+  const { submittedAt: _, ...metadataWithoutSubmittedAt } = data.metadata || {};
+  const metadata: any = {
+    ...metadataWithoutSubmittedAt,
+    ipId: userId,
+    ipName: userName || data.metadata?.ipName,
+    createdAt: Timestamp.fromDate(new Date(data.metadata?.createdAt || new Date().toISOString())),
+    updatedAt: Timestamp.fromDate(new Date(data.metadata?.updatedAt || new Date().toISOString())),
+    draft: true,
+    submitted: false,
+  };
+
+  const reportData = {
+    ...data,
+    metadata,
+  };
+
+  await setDoc(reportRef, stripUndefinedDeep(reportData));
+  return reportId;
 }
 
-export async function getRecentReports(limitCount: number = 20): Promise<ReportDocument[]> {
+export async function updateDraftReport(
+  reportId: string,
+  data: YRIPPFormData,
+  userId: string,
+  userRoles: UserRole[],
+  editReason?: string,
+  userName?: string
+): Promise<void> {
   if (!db) {
-    throw new Error("Firestore is not initialized. This function must be called from the client side.");
+    throw new Error("Firestore is not initialized");
   }
+
+  const reportRef = doc(db, REPORTS_COLLECTION, reportId);
+  const existingDoc = await getDoc(reportRef);
   
-  const q = query(
-    collection(db, COLLECTION_NAME),
-    where("metadata.submitted", "==", true),
-    orderBy("metadata.createdAt", "desc"),
-    limit(limitCount)
-  );
+  if (!existingDoc.exists()) {
+    throw new Error("Report not found");
+  }
+
+  const existingData = existingDoc.data();
+  const isStaff = userRoles.includes("staff");
   
-  const querySnapshot = await getDocs(q);
-  return querySnapshot.docs.map((doc) => ({
-    id: doc.id,
-    ...convertFromFirestore(doc.data()),
-  }));
+  const editHistory = [...(existingData.metadata?.editHistory || [])];
+  if (editReason && isStaff && userName) {
+    editHistory.push({
+      editedBy: userId,
+      editedByName: userName,
+      editedAt: new Date().toISOString(),
+      editReason,
+      role: userRoles.includes("admin") ? "admin" : "staff",
+    });
+  }
+
+  const { metadata: dataMetadata, ...reportData } = data;
+  const { submittedAt: _, ...metadataWithoutSubmittedAt } = dataMetadata || {};
+  const metadata: any = {
+    ...metadataWithoutSubmittedAt,
+    ipId: existingData.metadata.ipId,
+    createdAt: Timestamp.fromDate(new Date(dataMetadata?.createdAt || existingData.metadata?.createdAt?.toDate?.() || new Date())),
+    updatedAt: Timestamp.now(),
+    editHistory,
+    deleted: existingData.metadata?.deleted,
+  };
+
+  if (dataMetadata?.submittedAt) {
+    metadata.submittedAt = Timestamp.fromDate(new Date(dataMetadata.submittedAt));
+  } else if (existingData.metadata?.submittedAt) {
+    metadata.submittedAt = existingData.metadata.submittedAt;
+  }
+
+  const updateData: any = {
+    ...reportData,
+    metadata,
+  };
+
+  await updateDoc(reportRef, stripUndefinedDeep(updateData));
+}
+
+export async function submitReport(reportId: string, userId: string): Promise<void> {
+  if (!db) {
+    throw new Error("Firestore is not initialized");
+  }
+
+  const reportRef = doc(db, REPORTS_COLLECTION, reportId);
+  const existingDoc = await getDoc(reportRef);
+  
+  if (!existingDoc.exists()) {
+    throw new Error("Report not found");
+  }
+
+  const existingData = existingDoc.data();
+  if (existingData.metadata.ipId !== userId) {
+    throw new Error("You can only submit your own reports");
+  }
+
+  if (existingData.metadata.submitted) {
+    throw new Error("Report is already submitted");
+  }
+
+  await updateDoc(reportRef, {
+    "metadata.submitted": true,
+    "metadata.submittedAt": Timestamp.now(),
+    "metadata.updatedAt": Timestamp.now(),
+  });
 }

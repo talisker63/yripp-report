@@ -69,10 +69,10 @@ export const createInitialFormData = (): YRIPPFormData => ({
       concluded: "",
     },
     witnessedActions: [
-      { action: "fingerprinting", witnessed: "no", consent: "withoutConsent" },
-      { action: "photographing", witnessed: "no", consent: "withoutConsent" },
-      { action: "searching", witnessed: "no", consent: "withoutConsent" },
-      { action: "dna", witnessed: "no", consent: "withoutConsent" },
+      { action: "fingerprinting", witnessed: "", consent: "" },
+      { action: "photographing", witnessed: "", consent: "" },
+      { action: "searching", witnessed: "", consent: "" },
+      { action: "dna", witnessed: "", consent: "" },
     ],
   },
   outcome: {

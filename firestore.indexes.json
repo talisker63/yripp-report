@@ -37,6 +37,14 @@
       "collectionGroup": "interviewReports",
       "queryScope": "COLLECTION",
       "fields": [
+        { "fieldPath": "metadata.submitted", "mode": "ASCENDING" },
+        { "fieldPath": "metadata.updatedAt", "mode": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "interviewReports",
+      "queryScope": "COLLECTION",
+      "fields": [
         { "fieldPath": "sectionBPartA.dateOfBirth", "mode": "ASCENDING" },
         { "fieldPath": "sectionA.interviewDate", "mode": "DESCENDING" }
       ]

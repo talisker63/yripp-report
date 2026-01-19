@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import { useAuth } from "@/lib/auth/context";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 
@@ -108,22 +107,11 @@ function HelpContent() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <header className="bg-blue-600 text-white p-4 shadow-md">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <div>
-            <h1 className="text-xl font-bold">YRIPP Help Center</h1>
-            <p className="text-sm opacity-90">Advice and answers from the YRIPP Team</p>
-          </div>
-          <Link
-            href="/reports"
-            className="text-sm text-white hover:text-blue-200 px-3 py-1 border border-white/30 rounded hover:bg-white/10"
-          >
-            Back to Reports
-          </Link>
+      <div className="max-w-7xl mx-auto p-6 pt-6">
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-gray-900">YRIPP Help Center</h1>
+          <p className="text-sm text-gray-600 mt-1">Advice and answers from the YRIPP Team</p>
         </div>
-      </header>
-
-      <div className="max-w-7xl mx-auto p-6">
         <div className="mb-8">
           <div className="relative">
             <input
