@@ -247,11 +247,15 @@ User roles are stored in two places:
 1. **Firestore** (`users` collection): Primary source of truth
 2. **Firebase Auth Custom Claims**: Cached for Firestore rules
 
-Custom claims are set via Cloud Functions to ensure security:
+Custom claims are set via Cloud Functions to ensure security. The system includes:
+- `setUserRole`: Sets primary role and full roles array in custom claims
+- `syncMyClaims`: Allows users to refresh their claims after role changes
+- Automatic claim synchronization when roles are updated
 
 ```typescript
 admin.auth().setCustomUserClaims(userId, {
-  roles: ["user", "staff"]
+  role: "admin",  // Primary role
+  roles: ["user", "staff", "admin"]  // Full roles array
 });
 ```
 
@@ -334,9 +338,17 @@ Comprehensive report CRUD operations:
 User profile and role management:
 - `createUserProfile()`: Create user profile
 - `getUserProfile()`: Fetch user profile
-- `updateUserProfile()`: Update profile data
+- `updateUserProfile()`: Update profile data (name, phone, email)
 - `updateUserRoles()`: Update user roles (calls Cloud Function)
 - `getAllUsers()`: Fetch all users (admin only)
+
+#### Cloud Functions (`functions/src/index.ts`)
+Serverless functions for secure operations:
+- `setUserRole`: Updates user roles and custom claims (admin only)
+- `getUserRole`: Retrieves user role from custom claims
+- `adminCreateUser`: Creates new user account with roles (admin only)
+- `adminDeleteUser`: Deletes user account (admin only, cannot delete self)
+- `syncMyClaims`: Refreshes user's custom claims after role changes
 
 ## Build and Deployment
 

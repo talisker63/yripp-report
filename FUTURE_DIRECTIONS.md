@@ -566,12 +566,17 @@ Each limitation listed above is addressed in the roadmap phases.
 
 ## Version History
 
-### Current Version: 1.0
-- Complete RBAC system
+### Current Version: 1.0 (January 2026)
+- Complete RBAC system with multi-role support
 - Interview report creation and management
-- User settings
-- Admin panel
-- Help system
+- Draft saving and submission
+- User settings (name, email, phone)
+- Admin panel with bulk CSV upload
+- User deletion capability
+- Help system with role-specific content
+- Email/password and Google OAuth authentication
+- Password reset functionality
+- Audit trail for report edits
 - Architecture documentation
 
 ### Upcoming: Version 1.1 (Q2 2026)

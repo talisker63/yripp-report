@@ -175,6 +175,36 @@ NEXT_PUBLIC_FIREBASE_APP_ID=
 
 ---
 
-**Deployment Date:** 2026-01-11
+**Deployment Date:** January 2026
 **Status:** ✅ Production Ready
 **Version:** 1.0.0
+**Hosting URL:** https://yripp-report.web.app
+
+## Current Features
+
+### Authentication
+- ✅ Email/password authentication with show/hide password toggle
+- ✅ Google OAuth (popup with redirect fallback)
+- ✅ Password reset via email
+- ✅ Self-service account creation
+
+### User Management
+- ✅ Admin panel for user management
+- ✅ Bulk CSV upload (supports comma or pipe-separated roles)
+- ✅ Individual user creation
+- ✅ Role assignment (user, staff, admin)
+- ✅ User deletion (admin only, cannot delete self)
+- ✅ Token sync for role updates
+
+### Report Management
+- ✅ Create, edit, and submit interview reports
+- ✅ Draft saving and resumption
+- ✅ Role-based access control
+- ✅ Audit trail for staff edits
+- ✅ Edit history tracking
+
+### Settings
+- ✅ Update profile name
+- ✅ Update phone number
+- ✅ Change email address (requires password verification)
+- ✅ Password reset functionality

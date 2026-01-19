@@ -697,10 +697,18 @@ function getCategoryContent(categoryId: string, userRoles: string[]) {
                     <li><strong>Admin:</strong> Can manage users</li>
                   </ul>
                 </li>
-                <li>Update their name if needed</li>
-                <li>Click <strong>"Save"</strong> to apply changes</li>
+                <li>Changes save automatically when you toggle roles</li>
+                <li>Click <strong>"Close"</strong> to dismiss the modal</li>
               </ol>
-              <p><strong>Note:</strong> Users must sign out and sign back in for role changes to take effect.</p>
+              <p><strong>Note:</strong> Users should use the "Sync Token" button or sign out and sign back in for role changes to fully take effect.</p>
+              <h3>Deleting Users</h3>
+              <p>To delete a user account:</p>
+              <ol>
+                <li>Find the user in the Admin Panel</li>
+                <li>Click <strong>"Delete"</strong> next to their name</li>
+                <li>Confirm deletion in the modal</li>
+              </ol>
+              <p><strong>Important:</strong> You cannot delete your own account. Deleted users' submitted reports remain in the system.</p>
             `,
           },
           {
@@ -713,27 +721,29 @@ function getCategoryContent(categoryId: string, userRoles: string[]) {
               <h3>CSV File Format</h3>
               <p>Your CSV file must have these columns:</p>
               <ul>
-                <li><strong>name:</strong> User's full name</li>
+                <li><strong>name</strong> or <strong>full name:</strong> User's full name</li>
                 <li><strong>email:</strong> User's email address (must be unique)</li>
                 <li><strong>password:</strong> Initial password (min 6 characters)</li>
-                <li><strong>roles:</strong> Comma-separated roles (e.g., "user,staff" or "admin")</li>
+                <li><strong>role</strong> or <strong>roles:</strong> Comma or pipe-separated roles (e.g., "user,staff" or "user|admin")</li>
               </ul>
               <h3>Example CSV</h3>
               <pre>
 name,email,password,roles
 John Smith,john@example.com,SecurePass123,user
-Jane Doe,jane@example.com,AnotherPass456,user,staff
+Jane Doe,jane@example.com,AnotherPass456,"user,staff"
 Admin User,admin@example.com,AdminPass789,admin
+Sarah Jones,sarah@example.com,Pass2024,"user,staff,admin"
               </pre>
+              <p><strong>Note:</strong> Roles can be separated by commas (`,`) or pipes (`|`). Column headers are case-insensitive.</p>
               <h3>Upload Process</h3>
               <ol>
-                <li>In the Admin Panel, click <strong>"Bulk Upload Users"</strong></li>
+                <li>In the Admin Panel, click <strong>"Bulk Upload"</strong> button</li>
                 <li>Click the file input to select your CSV file</li>
-                <li>Click <strong>"Upload Users"</strong></li>
-                <li>Wait for the process to complete</li>
+                <li>The upload starts automatically when you select the file</li>
+                <li>Wait for the process to complete (can take time for large files)</li>
                 <li>The user list will refresh automatically</li>
               </ol>
-              <p><strong>Note:</strong> Users created via bulk upload should change their password upon first login.</p>
+              <p><strong>Note:</strong> Users created via bulk upload should change their password upon first login. The system processes each user sequentially.</p>
             `,
           },
           {
@@ -810,17 +820,18 @@ Admin User,admin@example.com,AdminPass789,admin
                 <li>Click the <strong>⚙️ Settings</strong> icon in the header</li>
                 <li>Update any of the following:
                   <ul>
-                    <li><strong>Full Name:</strong> Your display name in the system</li>
-                    <li><strong>Email Address:</strong> Your login email</li>
-                    <li><strong>Phone Number:</strong> Optional contact number</li>
+                    <li><strong>Full Name:</strong> Your display name in the system (saves immediately)</li>
+                    <li><strong>Phone Number:</strong> Optional contact number (saves immediately)</li>
+                    <li><strong>Email Address:</strong> Your login email (requires current password, signs you out after change)</li>
                   </ul>
                 </li>
-                <li>Click <strong>"Update Profile"</strong> to save changes</li>
+                <li>Click the respective <strong>"Update"</strong> button for each field</li>
               </ol>
               <h3>Important Notes</h3>
               <ul>
-                <li>Email changes will affect your login credentials</li>
-                <li>You may need to verify your new email address</li>
+                <li>Name and phone updates save immediately</li>
+                <li>Email changes require your current password for security</li>
+                <li>After changing email, you'll be signed out and need to sign in with the new email</li>
                 <li>Phone numbers are optional but recommended for contact purposes</li>
               </ul>
             `,

@@ -265,17 +265,26 @@ Click the **⚙️ Settings** icon in the header (next to your name).
 
 ### What You Can Update
 
-1. **Full Name**: Your display name in reports
-2. **Email Address**: Your login email (requires password)
-3. **Phone Number**: Optional contact number
+1. **Full Name**: Your display name in reports (updates immediately)
+2. **Phone Number**: Optional contact number (updates immediately)
+3. **Email Address**: Your login email (requires current password verification, signs you out after change)
 
 ### Changing Your Password
 
+**Option 1: Password Reset (Recommended)**
 1. Sign out
 2. Click "Forgot password?" on the login page
-3. Enter your email
-4. Check email for reset link
-5. Follow instructions to set new password
+3. Enter your email address
+4. Check your email for a password reset link
+5. Click the link and follow instructions to set a new password
+
+**Option 2: If You Know Your Current Password**
+1. Sign out
+2. Sign back in with your current password
+3. Go to Settings (⚙️ icon)
+4. Use the password reset link if available
+
+**Note**: Password reset links expire after 1 hour for security reasons.
 
 ### Security Tips
 

@@ -211,6 +211,15 @@ This documentation is maintained as part of the YRIPP system.
 **Version**: 1.0  
 **Next Review**: April 2026
 
+### Recent Documentation Updates
+
+- ✅ Updated all guides with current feature set
+- ✅ Added CSV upload format details (comma/pipe separators)
+- ✅ Documented user deletion functionality
+- ✅ Updated settings page capabilities
+- ✅ Clarified password reset process
+- ✅ Added token sync information
+
 ### Requesting Documentation Updates
 
 If you find errors or have suggestions for improving documentation:

@@ -143,6 +143,7 @@ Your edit reason should include:
 **What**: What was changed?
 **Why**: Why was it changed?
 **Who**: Who requested it (if applicable)?
+**When**: When was the request made (if applicable)?
 
 **Good Examples:**
 
@@ -150,7 +151,9 @@ Your edit reason should include:
 
 ✅ *"Added missing outcome information provided by IP via email on 10/01/2026. Young person was released on bail."*
 
-✅ *"Corrected interview time from 14:30 to 15:30 to match police records. Confirmed with IP John Smith."*
+✅ *"Corrected interview time from 14:30 to 15:30 to match police records. Confirmed with IP John Smith on 12/01/2026."*
+
+✅ *"Clarified IP concerns section based on follow-up conversation with IP. Original concerns remain unchanged, added context about police response."*
 
 **Bad Examples:**
 
@@ -159,6 +162,8 @@ Your edit reason should include:
 ❌ *"Updated"* - No context about what changed
 
 ❌ *"As requested"* - Doesn't say what was requested or by whom
+
+❌ *"Corrected typo"* - Doesn't specify what typo or where
 
 ### Editing Submitted vs Draft Reports
 

@@ -7,10 +7,11 @@
 #### 1. **User Settings Page** (`/settings`)
 - **Access:** Gear icon (⚙️) next to user name in reports header
 - **Features:**
-  - Update full name
-  - Update phone number
-  - Change email address (requires current password for security)
+  - Update full name (saves immediately)
+  - Update phone number (saves immediately)
+  - Change email address (requires current password for security, signs out after change)
 - **Location:** Accessible from reports page header
+- **Password Reset:** Available via "Forgot password?" link on login page
 
 #### 2. **Admin Panel** (`/admin`)
 - **Access:** "Admin" button in header (only visible to admin users)
@@ -19,6 +20,8 @@
   - **Edit User Roles:** Toggle user/staff/admin roles for any user
   - **Create New User:** Manual user creation with role assignment
   - **Bulk Upload:** CSV import for creating multiple users at once
+  - **Delete Users:** Remove user accounts (cannot delete self)
+  - **Sync Token:** Refresh custom claims after role changes
 
 #### 3. **Enhanced Role System**
 - **Multiple Roles:** Users can have multiple roles (user, staff, admin)
@@ -42,16 +45,23 @@
 The CSV file should have the following columns:
 - `email` (required)
 - `name` or `full name` (required)
+- `password` (required, minimum 6 characters)
 - `role` or `roles` (optional, comma or pipe-separated: `staff|admin` or `staff,admin`)
 
 **Example CSV:**
 ```csv
-email,name,role
-john@example.com,John Doe,staff
-jane@example.com,Jane Smith,admin
-bob@example.com,Bob Johnson,staff|admin
-alice@example.com,Alice Brown,user
+name,email,password,roles
+John Doe,john@example.com,SecurePass123,staff
+Jane Smith,jane@example.com,AnotherPass456,admin
+Bob Johnson,bob@example.com,Pass789,"staff,admin"
+Alice Brown,alice@example.com,TempPass2024,user
 ```
+
+**Notes:**
+- Column headers are case-insensitive
+- Roles can be separated by commas (`,`) or pipes (`|`)
+- If no roles specified, defaults to "user"
+- Passwords must be at least 6 characters
 
 ### User Profile Structure
 

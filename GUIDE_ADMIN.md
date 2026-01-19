@@ -102,19 +102,17 @@ Currently, you can:
 
 1. **Find the user** in the list
 2. **Click "Edit"** next to their name
-3. **Edit form appears** with:
-   - Name (editable)
-   - Email (display only - cannot be changed here)
-   - Role checkboxes
-   - Phone number
+3. **Edit modal appears** with:
+   - Role checkboxes (User, Staff, Admin)
 4. **Make your changes**:
-   - Update name if needed
-   - Check/uncheck role boxes
-   - Update phone if provided
-5. **Click "Save"** to apply changes
-6. **Click "Cancel"** to discard changes
+   - Check/uncheck role boxes to assign or remove roles
+   - At least one role must be selected (defaults to "user" if none selected)
+5. **Changes save automatically** when you toggle roles
+6. **Click "Close"** to dismiss the modal
 
-**Important**: Users must sign out and sign back in for role changes to take effect.
+**Note**: To update a user's name or phone number, they can do so in their Settings page. Email changes require password verification and are handled through the Settings page.
+
+**Important**: Users should use the "Sync Token" button or sign out and sign back in for role changes to fully take effect.
 
 ### Role Checkboxes
 
@@ -217,10 +215,10 @@ Your CSV file must have these columns (in any order):
 
 | Column | Description | Required | Example |
 |--------|-------------|----------|---------|
-| **name** | User's full name | Yes | "John Smith" |
+| **name** or **full name** | User's full name | Yes | "John Smith" |
 | **email** | Email address (unique) | Yes | "john@example.com" |
 | **password** | Initial password | Yes | "SecurePass123" |
-| **roles** | Comma-separated roles | Optional | "user,staff" |
+| **role** or **roles** | Comma or pipe-separated roles | Optional | "user,staff" or "user\|staff" |
 
 #### Example CSV
 
@@ -233,7 +231,9 @@ Sarah Jones,sarah@example.com,Pass2024,"user,staff,admin"
 ```
 
 **Notes:**
+- Column headers are case-insensitive (e.g., "name" or "full name")
 - Use quotes around values with commas
+- Roles can be separated by commas (`,`) or pipes (`|`)
 - Passwords should be strong (users should change them)
 - Roles are optional (defaults to "user")
 - Available roles: user, staff, admin
@@ -471,9 +471,9 @@ John Doe,john@example.com,Pass123,"user,staff,admin"
    - Verify email address is correct
 
 4. **Can't See Expected Features**
-   - Check their roles
+   - Check their roles in Admin Panel
    - They may need Staff or Admin role
-   - Update roles and have them sign out/in
+   - Update roles and have them use "Sync Token" or sign out/in
 
 ### Training New Users
 
@@ -522,6 +522,7 @@ Point users to:
 #### Can't Access Admin Panel
 - Check you have Admin role
 - Look for "Admin" button in header
+- Try clicking "Sync Token" button in Admin Panel (if visible)
 - Sign out and sign back in
 - Contact another admin if role missing
 
@@ -609,6 +610,8 @@ Click **? Help** icon in header for:
 | **Assign Role** | Edit user → Check role box → Save |
 | **Remove Role** | Edit user → Uncheck role box → Save |
 | **Bulk Upload** | Admin Panel → Bulk Upload → Select CSV → Upload |
+| **Delete User** | Admin Panel → Find user → Delete → Confirm |
+| **Sync Token** | Admin Panel → Sync Token button (refreshes role claims) |
 | **Return to Reports** | Header → Reports button |
 
 ### Remember

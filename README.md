@@ -181,11 +181,16 @@ Private and proprietary. All rights reserved.
 
 **Recent Updates**:
 - ✅ Complete RBAC system with multi-role support
-- ✅ Comprehensive help system
-- ✅ Admin panel with bulk upload
+- ✅ Comprehensive help system with role-specific content
+- ✅ Admin panel with bulk CSV upload and user management
 - ✅ Full documentation suite
 - ✅ Audit trail for report edits
-- ✅ User settings management
+- ✅ User settings management (name, email, phone)
+- ✅ Email/password and Google OAuth authentication
+- ✅ Password reset functionality
+- ✅ Show/hide password toggle on login and signup
+- ✅ User deletion capability for admins
+- ✅ Token sync functionality for role updates
 
 See [FUTURE_DIRECTIONS.md](./FUTURE_DIRECTIONS.md) for upcoming features.
 
