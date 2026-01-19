@@ -7,8 +7,8 @@ export interface PoliceContact {
 
 export interface WitnessedAction {
   action: "fingerprinting" | "photographing" | "searching" | "dna";
-  witnessed: "yes" | "no" | "didntWitnessButTold";
-  consent: "consent" | "withoutConsent";
+  witnessed: "yes" | "no" | "didntWitnessButTold" | "";
+  consent: "consent" | "withoutConsent" | "";
 }
 
 export interface InterviewOfficer {

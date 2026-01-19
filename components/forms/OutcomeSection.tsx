@@ -16,12 +16,9 @@ export const OutcomeSection = ({ data, onChange, readOnly = false }: OutcomeSect
   const updateField = <K extends keyof YRIPPFormData["outcome"]>(
     field: K,
     value: YRIPPFormData["outcome"][K]
-  ) => {
-    onChange({
-      ...data,
-      [field]: value,
-    });
-  };
+  ) => onChange({ ...data, [field]: value });
+
+  const updateFields = (partial: Partial<YRIPPFormData["outcome"]>) => onChange({ ...data, ...partial });
 
   const interviewOutcomeOptions = [
     {
@@ -73,13 +70,13 @@ export const OutcomeSection = ({ data, onChange, readOnly = false }: OutcomeSect
                     id={`interviewOutcome-${option.value}`}
                     value={option.value}
                     checked={data.interviewOutcome === option.value}
-                  disabled={readOnly}
+                    disabled={readOnly}
                     onChange={(e) => {
                       const newValue = e.target.value;
-                      updateField("interviewOutcome", newValue);
-                      if (newValue !== "other") {
-                        updateField("interviewOutcomeOther", undefined);
-                      }
+                      updateFields({
+                        interviewOutcome: newValue,
+                        interviewOutcomeOther: newValue === "other" ? data.interviewOutcomeOther : undefined,
+                      });
                     }}
                     className="mt-0.5 h-4 w-4 border-gray-300 text-blue-600 focus:ring-2 focus:ring-blue-500 cursor-pointer flex-shrink-0"
                   />
@@ -143,10 +140,10 @@ export const OutcomeSection = ({ data, onChange, readOnly = false }: OutcomeSect
                   disabled={readOnly}
                   onChange={(e) => {
                     const newValue = e.target.value;
-                    updateField("bailHearingSupport", newValue);
-                    if (newValue !== "other") {
-                      updateField("bailHearingSupportOther", undefined);
-                    }
+                    updateFields({
+                      bailHearingSupport: newValue,
+                      bailHearingSupportOther: newValue === "other" ? data.bailHearingSupportOther : undefined,
+                    });
                   }}
                   className="mt-0.5 h-4 w-4 border-gray-300 text-blue-600 focus:ring-2 focus:ring-blue-500 cursor-pointer flex-shrink-0"
                 />

@@ -11,6 +11,7 @@ import {
   Timestamp,
 } from "firebase/firestore";
 import { UserRole } from "@/lib/auth/types";
+import { parseRoles } from "@/lib/auth/utils";
 
 const USERS_COLLECTION = "users";
 
@@ -42,7 +43,7 @@ export async function getUserProfile(userId: string): Promise<UserProfile | null
     email: data.email,
     name: data.name,
     phoneNumber: data.phoneNumber,
-    roles: data.roles || ["user"],
+    roles: parseRoles(data.roles),
     createdAt: data.createdAt?.toDate?.()?.toISOString() || new Date().toISOString(),
     updatedAt: data.updatedAt?.toDate?.()?.toISOString() || new Date().toISOString(),
   };
@@ -101,7 +102,7 @@ export async function getAllUsers(): Promise<UserProfile[]> {
       email: data.email,
       name: data.name,
       phoneNumber: data.phoneNumber,
-      roles: data.roles || ["user"],
+      roles: parseRoles(data.roles),
       createdAt: data.createdAt?.toDate?.()?.toISOString() || new Date().toISOString(),
       updatedAt: data.updatedAt?.toDate?.()?.toISOString() || new Date().toISOString(),
     };

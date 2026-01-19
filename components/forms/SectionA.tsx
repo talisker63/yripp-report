@@ -224,12 +224,13 @@ export const SectionA = ({ data, onChange, readOnly = false }: SectionAProps) =>
               label: opt.label.replace(", specify", "")
             }))}
             value={data.parentNotAttendingReason?.[0] || ""}
-            onChange={(value) => {
-              updateField("parentNotAttendingReason", [value]);
-              if (value !== "other") {
-                updateField("parentNotAttendingOther", undefined);
-              }
-            }}
+            onChange={(value) =>
+              onChange({
+                ...data,
+                parentNotAttendingReason: [value],
+                parentNotAttendingOther: value === "other" ? data.parentNotAttendingOther : undefined,
+              })
+            }
             disabled={readOnly}
           />
           {data.parentNotAttendingReason?.[0] === "other" && (

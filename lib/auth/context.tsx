@@ -9,13 +9,15 @@ import {
   onAuthStateChanged,
   sendPasswordResetEmail,
   signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
   GoogleAuthProvider,
   updateProfile,
   getIdTokenResult,
 } from "firebase/auth";
-import { auth } from "@/lib/firebase/config";
+import { auth, db, app } from "@/lib/firebase/config";
 import { User, UserRole } from "./types";
-import { mapFirebaseUser } from "./utils";
+import { mapFirebaseUser, parseRoles } from "./utils";
 import { getUserProfile, createUserProfile } from "@/lib/firebase/users";
 
 interface AuthContextType {
@@ -36,17 +38,28 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!auth) {
+    const currentAuth = auth;
+    if (!currentAuth) {
       console.warn("Firebase Auth is not initialized. Check your Firebase configuration.");
       setLoading(false);
       return;
     }
 
     let mounted = true;
+    const loadingTimeout = setTimeout(() => {
+      if (mounted) {
+        console.warn("Auth loading timeout - setting loading to false");
+        setUser(null);
+        setLoading(false);
+      }
+    }, 2000);
 
     const loadUser = async (firebaseUser: FirebaseUser) => {
       try {
-        const tokenResult = await getIdTokenResult(firebaseUser, true);
+        const tokenResult = await Promise.race([
+          getIdTokenResult(firebaseUser, true),
+          new Promise((_, reject) => setTimeout(() => reject(new Error("Token timeout")), 10000))
+        ]) as any;
         let roles: UserRole[] = ["user"];
         
         if (tokenResult.claims.roles && Array.isArray(tokenResult.claims.roles)) {
@@ -55,17 +68,30 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           roles = [tokenResult.claims.role as UserRole];
         }
 
-        const profile = await getUserProfile(firebaseUser.uid);
-        
-        if (!profile) {
-          await createUserProfile(
-            firebaseUser.uid,
-            firebaseUser.email || "",
-            firebaseUser.displayName || "",
-            roles
-          );
-        } else if (profile.roles && profile.roles.length > 0) {
-          roles = profile.roles;
+        let profile = null;
+        if (db) {
+          try {
+            profile = await Promise.race([
+              getUserProfile(firebaseUser.uid),
+              new Promise((_, reject) => setTimeout(() => reject(new Error("Profile timeout")), 5000))
+            ]) as any;
+            
+            if (!profile) {
+              await Promise.race([
+                createUserProfile(
+                  firebaseUser.uid,
+                  firebaseUser.email || "",
+                  firebaseUser.displayName || "",
+                  roles
+                ),
+                new Promise((_, reject) => setTimeout(() => reject(new Error("Create profile timeout")), 5000))
+              ]);
+            } else if (profile.roles && profile.roles.length > 0) {
+              roles = parseRoles(profile.roles);
+            }
+          } catch (dbError: any) {
+            console.error("Error accessing Firestore:", dbError);
+          }
         }
 
         const mappedUser = mapFirebaseUser(firebaseUser, roles);
@@ -77,6 +103,44 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           setUser(mappedUser);
           setLoading(false);
         }
+
+        const tokenRoles = parseRoles((tokenResult.claims as any)?.roles ?? []);
+        const tokenPrimaryRole = String((tokenResult.claims as any)?.role ?? "").toLowerCase();
+        const shouldSync =
+          app &&
+          roles.some((r) => r === "admin" || r === "staff") &&
+          (!tokenPrimaryRole || (tokenPrimaryRole !== "admin" && tokenPrimaryRole !== "staff") || tokenRoles.sort().join(",") !== roles.slice().sort().join(","));
+
+        if (shouldSync && app) {
+          (async () => {
+            try {
+              const { getFunctions, httpsCallable } = await import("firebase/functions");
+              const functions = getFunctions(app);
+              const syncMyClaims = httpsCallable(functions, "syncMyClaims");
+              await Promise.race([
+                syncMyClaims({}),
+                new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout")), 5000))
+              ]);
+              await firebaseUser.getIdToken(true);
+              if (mounted) {
+                const updatedTokenResult = await getIdTokenResult(firebaseUser, true);
+                let updatedRoles: UserRole[] = ["user"];
+                if (updatedTokenResult.claims.roles && Array.isArray(updatedTokenResult.claims.roles)) {
+                  updatedRoles = updatedTokenResult.claims.roles as UserRole[];
+                } else if (updatedTokenResult.claims.role) {
+                  updatedRoles = [updatedTokenResult.claims.role as UserRole];
+                }
+                const updatedProfile = db ? await getUserProfile(firebaseUser.uid).catch(() => null) : null;
+                if (updatedProfile?.roles && updatedProfile.roles.length > 0) {
+                  updatedRoles = parseRoles(updatedProfile.roles);
+                }
+                setUser(mapFirebaseUser(firebaseUser, updatedRoles));
+              }
+            } catch (e) {
+              console.error("Error syncing claims:", e);
+            }
+          })();
+        }
       } catch (error: any) {
         console.error("Error loading user profile:", error);
         if (mounted) {
@@ -86,15 +150,46 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
     };
 
+    let currentLoadingUser: string | null = null;
+
+    const handleRedirectResult = async () => {
+      try {
+        const result = await getRedirectResult(currentAuth);
+        if (result?.user && mounted && currentLoadingUser !== result.user.uid) {
+          currentLoadingUser = result.user.uid;
+          await loadUser(result.user);
+        }
+      } catch (error: any) {
+        if (error.code !== "auth/operation-not-allowed") {
+          console.error("Error handling redirect result:", error);
+        }
+      }
+    };
+
+    handleRedirectResult().catch(() => {});
+
     const unsubscribe = onAuthStateChanged(
-      auth,
+      currentAuth,
       async (firebaseUser: FirebaseUser | null) => {
         if (!mounted) return;
 
-        if (firebaseUser) {
-          await loadUser(firebaseUser);
-        } else {
+        try {
+          if (firebaseUser) {
+            if (currentLoadingUser !== firebaseUser.uid) {
+              currentLoadingUser = firebaseUser.uid;
+              await loadUser(firebaseUser);
+            }
+          } else {
+            if (mounted) {
+              currentLoadingUser = null;
+              setUser(null);
+              setLoading(false);
+            }
+          }
+        } catch (error) {
+          console.error("Error in auth state change handler:", error);
           if (mounted) {
+            currentLoadingUser = null;
             setUser(null);
             setLoading(false);
           }
@@ -105,12 +200,25 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         if (mounted) {
           setUser(null);
           setLoading(false);
+          currentLoadingUser = null;
         }
       }
     );
 
+    const immediateCheck = setTimeout(() => {
+      if (mounted && loading) {
+        const currentUser = currentAuth.currentUser;
+        if (!currentUser) {
+          setUser(null);
+          setLoading(false);
+        }
+      }
+    }, 100);
+
     return () => {
       mounted = false;
+      clearTimeout(loadingTimeout);
+      clearTimeout(immediateCheck);
       unsubscribe();
     };
   }, []);
@@ -143,16 +251,26 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const signInWithGoogle = async () => {
     if (!auth) throw new Error("Firebase Auth is not initialized");
     const provider = new GoogleAuthProvider();
-    await signInWithPopup(auth, provider);
+    
+    try {
+      await signInWithPopup(auth, provider);
+    } catch (error: any) {
+      if (error.code === "auth/popup-blocked" || error.code === "auth/popup-closed-by-user") {
+        await signInWithRedirect(auth, provider);
+      } else {
+        throw error;
+      }
+    }
   };
 
   const hasRole = (role: UserRole | UserRole[]): boolean => {
     if (!user) return false;
-    const userRoles = user.roles || [];
+    const userRoles = parseRoles(user.roles);
+    const normalizedUserRoles = userRoles.map(r => String(r).toLowerCase());
     if (Array.isArray(role)) {
-      return role.some((r) => userRoles.includes(r));
+      return role.some((r) => normalizedUserRoles.includes(String(r).toLowerCase()));
     }
-    return userRoles.includes(role);
+    return normalizedUserRoles.includes(String(role).toLowerCase());
   };
 
   return (

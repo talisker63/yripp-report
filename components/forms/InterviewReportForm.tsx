@@ -290,9 +290,6 @@ export default function InterviewReportForm({
     if (!data.sectionE?.whatOccurred || data.sectionE.whatOccurred.length === 0) {
       missingQuestions.push("48. Which of the following occurred?");
     }
-    if (!data.sectionE?.coAccusedSupport || data.sectionE.coAccusedSupport === "") {
-      missingQuestions.push("49. If a co-accused YP is present, who supported them?");
-    }
     if (!data.sectionE?.wantYRIPPFollowUp) missingQuestions.push("50. I would like a YRIPP staff member to call me about this call out.");
     if (!data.sectionE?.leftStationTime?.trim()) missingQuestions.push("51. Time you left the police station");
 

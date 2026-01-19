@@ -34,4 +34,4 @@ if (typeof window !== "undefined") {
   }
 }
 
-export { auth, db, storage, firebaseConfig };
+export { auth, db, storage, firebaseConfig, app };

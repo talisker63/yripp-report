@@ -187,8 +187,8 @@ export const InterviewSection = ({ data, onChange, readOnly = false }: Interview
                 ].map(({ key, label }) => {
                   const action = data.witnessedActions.find((a) => a.action === key) || {
                     action: key as any,
-                    witnessed: "no" as const,
-                    consent: "withoutConsent" as const,
+                    witnessed: "" as const,
+                    consent: "" as const,
                   };
                   const index = data.witnessedActions.findIndex((a) => a.action === key);
                   return (
@@ -204,12 +204,13 @@ export const InterviewSection = ({ data, onChange, readOnly = false }: Interview
                             if (index >= 0) {
                               updated[index] = {
                                 ...action,
-                                witnessed: e.target.checked ? ("yes" as const) : ("no" as const),
+                                witnessed: e.target.checked ? ("yes" as const) : ("" as const),
                               };
                             } else {
                               updated.push({
-                                ...action,
-                                witnessed: "yes" as const,
+                                action: key as any,
+                                witnessed: e.target.checked ? ("yes" as const) : ("" as const),
+                                consent: "" as const,
                               });
                             }
                             updateField("witnessedActions", updated);
@@ -227,12 +228,13 @@ export const InterviewSection = ({ data, onChange, readOnly = false }: Interview
                             if (index >= 0) {
                               updated[index] = {
                                 ...action,
-                                witnessed: e.target.checked ? ("no" as const) : ("yes" as const),
+                                witnessed: e.target.checked ? ("no" as const) : ("" as const),
                               };
                             } else {
                               updated.push({
-                                ...action,
-                                witnessed: "no" as const,
+                                action: key as any,
+                                witnessed: e.target.checked ? ("no" as const) : ("" as const),
+                                consent: "" as const,
                               });
                             }
                             updateField("witnessedActions", updated);
@@ -252,12 +254,13 @@ export const InterviewSection = ({ data, onChange, readOnly = false }: Interview
                                 ...action,
                                 witnessed: e.target.checked
                                   ? ("didntWitnessButTold" as const)
-                                  : ("no" as const),
+                                  : ("" as const),
                               };
                             } else {
                               updated.push({
-                                ...action,
-                                witnessed: "didntWitnessButTold" as const,
+                                action: key as any,
+                                witnessed: e.target.checked ? ("didntWitnessButTold" as const) : ("" as const),
+                                consent: "" as const,
                               });
                             }
                             updateField("witnessedActions", updated);
@@ -275,12 +278,13 @@ export const InterviewSection = ({ data, onChange, readOnly = false }: Interview
                             if (index >= 0) {
                               updated[index] = {
                                 ...action,
-                                consent: e.target.checked ? ("consent" as const) : ("withoutConsent" as const),
+                                consent: e.target.checked ? ("consent" as const) : ("" as const),
                               };
                             } else {
                               updated.push({
-                                ...action,
-                                consent: "consent" as const,
+                                action: key as any,
+                                witnessed: "" as const,
+                                consent: e.target.checked ? ("consent" as const) : ("" as const),
                               });
                             }
                             updateField("witnessedActions", updated);
@@ -300,12 +304,13 @@ export const InterviewSection = ({ data, onChange, readOnly = false }: Interview
                                 ...action,
                                 consent: e.target.checked
                                   ? ("withoutConsent" as const)
-                                  : ("consent" as const),
+                                  : ("" as const),
                               };
                             } else {
                               updated.push({
-                                ...action,
-                                consent: "withoutConsent" as const,
+                                action: key as any,
+                                witnessed: "" as const,
+                                consent: e.target.checked ? ("withoutConsent" as const) : ("" as const),
                               });
                             }
                             updateField("witnessedActions", updated);
