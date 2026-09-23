@@ -1,10 +1,16 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { DocumentSnapshot } from "firebase/firestore";
 import { useAuth } from "@/lib/auth/context";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
-import { getReportsByUser, ReportDocument } from "@/lib/firebase/reports";
+import {
+  ReportSummary,
+  backfillReportSummaries,
+  getReportSummariesPage,
+  syncPendingReports,
+} from "@/lib/firebase/reports";
 import { Button } from "@/components/ui/Button";
 
 type FilterType = "all" | "drafts" | "submitted";
@@ -20,37 +26,81 @@ export default function ReportsPage() {
 function ReportsContent() {
   const router = useRouter();
   const { user, loading: authLoading } = useAuth();
-  const [reports, setReports] = useState<ReportDocument[]>([]);
+  const [reports, setReports] = useState<ReportSummary[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [filter, setFilter] = useState<FilterType>("all");
+  const [cursor, setCursor] = useState<DocumentSnapshot | null>(null);
+  const [hasMore, setHasMore] = useState(false);
+  const [syncMessage, setSyncMessage] = useState("");
+
+  const isStaff = user?.roles?.includes("staff") || user?.roles?.includes("admin");
+
+  const loadPage = useCallback(
+    async (reset: boolean, activeFilter: FilterType, pageCursor: DocumentSnapshot | null) => {
+      if (!user) return;
+
+      if (reset) {
+        setLoading(true);
+      } else {
+        setLoadingMore(true);
+      }
+
+      try {
+        if (reset) {
+          await backfillReportSummaries(user.id, user.roles || []).catch(() => 0);
+          await syncPendingReports(user.id, user.roles || [], user.name || undefined).catch(() => 0);
+        }
+
+        const page = await getReportSummariesPage(user.id, user.roles || [], {
+          filter: activeFilter,
+          cursor: reset ? null : pageCursor,
+        });
+
+        setReports((prev) => (reset ? page.items : [...prev, ...page.items]));
+        setCursor(page.cursor);
+        setHasMore(page.hasMore);
+      } catch (error) {
+        console.error("Error loading reports:", error);
+        setSyncMessage("Failed to load reports. Check your connection and try again.");
+      } finally {
+        setLoading(false);
+        setLoadingMore(false);
+      }
+    },
+    [user]
+  );
 
   useEffect(() => {
     if (!authLoading && user) {
-      loadReports();
+      loadPage(true, filter, null);
     }
-  }, [user, authLoading]);
+  }, [user, authLoading, filter, loadPage]);
 
-  const loadReports = async () => {
+  useEffect(() => {
     if (!user) return;
 
-    try {
-      setLoading(true);
-      const userReports = await getReportsByUser(user.id, user.roles || []);
-      setReports(userReports);
-    } catch (error) {
-      console.error("Error loading reports:", error);
-    } finally {
-      setLoading(false);
-    }
+    const onOnline = () => {
+      syncPendingReports(user.id, user.roles || [], user.name || undefined)
+        .then((count) => {
+          if (count > 0) {
+            setSyncMessage(`Synced ${count} local draft${count === 1 ? "" : "s"}.`);
+            loadPage(true, filter, null);
+          }
+        })
+        .catch(() => {});
+    };
+
+    window.addEventListener("online", onOnline);
+    return () => window.removeEventListener("online", onOnline);
+  }, [user, filter, loadPage]);
+
+  const handleFilterChange = (next: FilterType) => {
+    setFilter(next);
+    setReports([]);
+    setCursor(null);
+    setHasMore(false);
   };
-
-  const filteredReports = reports.filter((report) => {
-    if (filter === "drafts") return !report.metadata?.submitted;
-    if (filter === "submitted") return report.metadata?.submitted;
-    return true;
-  });
-
-  const isStaff = user?.roles?.includes("staff") || user?.roles?.includes("admin");
 
   if (authLoading || loading) {
     return (
@@ -77,11 +127,17 @@ function ReportsContent() {
           </Button>
         </div>
 
+        {syncMessage && (
+          <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
+            {syncMessage}
+          </div>
+        )}
+
         <div className="bg-white rounded-lg shadow">
           <div className="border-b border-gray-200">
             <div className="flex">
               <button
-                onClick={() => setFilter("all")}
+                onClick={() => handleFilterChange("all")}
                 className={`px-6 py-3 text-sm font-medium ${
                   filter === "all"
                     ? "text-blue-600 border-b-2 border-blue-600"
@@ -91,7 +147,7 @@ function ReportsContent() {
                 All Reports
               </button>
               <button
-                onClick={() => setFilter("drafts")}
+                onClick={() => handleFilterChange("drafts")}
                 className={`px-6 py-3 text-sm font-medium ${
                   filter === "drafts"
                     ? "text-blue-600 border-b-2 border-blue-600"
@@ -101,7 +157,7 @@ function ReportsContent() {
                 Drafts
               </button>
               <button
-                onClick={() => setFilter("submitted")}
+                onClick={() => handleFilterChange("submitted")}
                 className={`px-6 py-3 text-sm font-medium ${
                   filter === "submitted"
                     ? "text-blue-600 border-b-2 border-blue-600"
@@ -143,7 +199,7 @@ function ReportsContent() {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {filteredReports.length === 0 ? (
+                {reports.length === 0 ? (
                   <tr>
                     <td
                       colSpan={isStaff ? 7 : 6}
@@ -153,23 +209,23 @@ function ReportsContent() {
                     </td>
                   </tr>
                 ) : (
-                  filteredReports.map((report) => {
-                    const isSubmitted = report.metadata?.submitted || false;
-                    const isOwner = report.metadata?.ipId === user?.id;
-                    const canEdit = isOwner && !isSubmitted || isStaff;
+                  reports.map((report) => {
+                    const isSubmitted = report.submitted;
+                    const isOwner = report.ipId === user?.id;
+                    const canEdit = (isOwner && !isSubmitted) || !!isStaff;
 
                     return (
                       <tr key={report.id} className="hover:bg-gray-50">
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {report.sectionA?.interviewDate
-                            ? new Date(report.sectionA.interviewDate).toLocaleDateString("en-AU")
+                          {report.interviewDate
+                            ? new Date(report.interviewDate).toLocaleDateString("en-AU")
                             : "-"}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {report.sectionA?.independentPersonName || "-"}
+                          {report.independentPersonName || "-"}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {report.sectionA?.policeStation || "-"}
+                          {report.policeStation || "-"}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <span
@@ -183,33 +239,24 @@ function ReportsContent() {
                           </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {report.metadata?.updatedAt
-                            ? new Date(report.metadata.updatedAt).toLocaleDateString("en-AU")
+                          {report.updatedAt
+                            ? new Date(report.updatedAt).toLocaleDateString("en-AU")
                             : "-"}
                         </td>
                         {isStaff && (
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {report.metadata?.editHistory && report.metadata.editHistory.length > 0
-                              ? `${report.metadata.editHistory.length} edit(s)`
+                            {report.editHistoryCount > 0
+                              ? `${report.editHistoryCount} edit(s)`
                               : "None"}
                           </td>
                         )}
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                          {canEdit ? (
-                            <button
-                              onClick={() => router.push(`/interview-report/edit?id=${report.id}`)}
-                              className="text-blue-600 hover:text-blue-900"
-                            >
-                              Edit
-                            </button>
-                          ) : (
-                            <button
-                              onClick={() => router.push(`/interview-report/edit?id=${report.id}`)}
-                              className="text-blue-600 hover:text-blue-900"
-                            >
-                              View
-                            </button>
-                          )}
+                          <button
+                            onClick={() => router.push(`/interview-report/edit?id=${report.id}`)}
+                            className="text-blue-600 hover:text-blue-900"
+                          >
+                            {canEdit ? "Edit" : "View"}
+                          </button>
                         </td>
                       </tr>
                     );
@@ -218,6 +265,19 @@ function ReportsContent() {
               </tbody>
             </table>
           </div>
+
+          {hasMore && (
+            <div className="border-t border-gray-200 px-6 py-4 flex justify-center">
+              <Button
+                type="button"
+                variant="secondary"
+                disabled={loadingMore}
+                onClick={() => loadPage(false, filter, cursor)}
+              >
+                {loadingMore ? "Loading..." : "Load more"}
+              </Button>
+            </div>
+          )}
         </div>
       </div>
     </div>

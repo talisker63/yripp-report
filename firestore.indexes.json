@@ -73,6 +73,23 @@
         { "fieldPath": "metadata.ipId", "mode": "ASCENDING" },
         { "fieldPath": "metadata.updatedAt", "mode": "DESCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "reportSummaries",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "ipId", "mode": "ASCENDING" },
+        { "fieldPath": "submitted", "mode": "ASCENDING" },
+        { "fieldPath": "updatedAt", "mode": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "reportSummaries",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "submitted", "mode": "ASCENDING" },
+        { "fieldPath": "updatedAt", "mode": "DESCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []

@@ -734,7 +734,7 @@ Jane Doe,jane@example.com,AnotherPass456,"user,staff"
 Admin User,admin@example.com,AdminPass789,admin
 Sarah Jones,sarah@example.com,Pass2024,"user,staff,admin"
               </pre>
-              <p><strong>Note:</strong> Roles can be separated by commas (`,`) or pipes (`|`). Column headers are case-insensitive.</p>
+              <p><strong>Note:</strong> Roles can be separated by commas (",") or pipes ("|"). Column headers are case-insensitive.</p>
               <h3>Upload Process</h3>
               <ol>
                 <li>In the Admin Panel, click <strong>"Bulk Upload"</strong> button</li>

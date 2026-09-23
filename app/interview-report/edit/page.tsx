@@ -5,7 +5,14 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth/context";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { YRIPPFormData } from "@/lib/types/yripp-form";
-import { getReport, updateDraftReport, submitReport, ReportDocument } from "@/lib/firebase/reports";
+import {
+  loadReport,
+  updateDraftReport,
+  submitReport,
+  syncPendingReports,
+  ReportDocument,
+  SaveReportResult,
+} from "@/lib/firebase/reports";
 import InterviewReportForm from "@/components/forms/InterviewReportForm";
 
 export default function EditReportPage() {
@@ -24,16 +31,17 @@ function EditReportContent() {
   const [loading, setLoading] = useState(true);
   const [editReason, setEditReason] = useState("");
   const [showEditModal, setShowEditModal] = useState(false);
-  const reportId = searchParams.get('id');
+  const [statusMessage, setStatusMessage] = useState("");
+  const reportId = searchParams.get("id");
 
-  const loadReport = useCallback(async () => {
+  const loadReportData = useCallback(async () => {
     if (!reportId || !user) {
       setLoading(false);
       return;
     }
 
     try {
-      const report = await getReport(reportId);
+      const { report, fromLocal, syncStatus } = await loadReport(reportId, user.id);
       if (!report) {
         router.push("/reports");
         return;
@@ -59,6 +67,13 @@ function EditReportContent() {
       }
 
       setFormData(report);
+      if (fromLocal && (syncStatus === "pending" || syncStatus === "error")) {
+        setStatusMessage("Showing locally saved draft. Syncing to cloud when online.");
+      } else if (fromLocal) {
+        setStatusMessage("");
+      } else {
+        setStatusMessage("");
+      }
     } catch (error) {
       console.error("Error loading report:", error);
       router.push("/reports");
@@ -69,11 +84,30 @@ function EditReportContent() {
 
   useEffect(() => {
     if (user && reportId) {
-      loadReport();
+      loadReportData();
     }
-  }, [user, reportId, loadReport]);
+  }, [user, reportId, loadReportData]);
 
-  const handleSave = async (data: YRIPPFormData, isSubmission: boolean) => {
+  useEffect(() => {
+    if (!user) return;
+    const onOnline = () => {
+      syncPendingReports(user.id, user.roles || [], user.name || undefined)
+        .then((count) => {
+          if (count > 0) {
+            setStatusMessage(`Synced ${count} local change${count === 1 ? "" : "s"}.`);
+            loadReportData();
+          }
+        })
+        .catch(() => {});
+    };
+    window.addEventListener("online", onOnline);
+    return () => window.removeEventListener("online", onOnline);
+  }, [user, loadReportData]);
+
+  const handleSave = async (
+    data: YRIPPFormData,
+    isSubmission: boolean
+  ): Promise<SaveReportResult | void> => {
     if (!user || !formData?.id) return;
 
     const isOwner = formData.metadata?.ipId === user.id;
@@ -99,19 +133,26 @@ function EditReportContent() {
       if (isSubmission && isOwner && !isSubmitted) {
         await submitReport(formData.id, user.id);
         router.push("/reports");
-      } else {
-        await updateDraftReport(
-          formData.id,
-          data,
-          user.id,
-          user.roles || [],
-          isStaff && !isOwner ? editReason : undefined,
-          user.name || undefined
-        );
-        setFormData({ ...formData, ...data });
-        setEditReason("");
-        setShowEditModal(false);
+        return;
       }
+
+      const result = await updateDraftReport(
+        formData.id,
+        data,
+        user.id,
+        user.roles || [],
+        isStaff && !isOwner ? editReason : undefined,
+        user.name || undefined
+      );
+      setFormData({ ...formData, ...data, id: formData.id });
+      setEditReason("");
+      setShowEditModal(false);
+      if (!result.synced) {
+        setStatusMessage(result.syncError || "Saved locally. Will sync when online.");
+      } else {
+        setStatusMessage("Saved and synced.");
+      }
+      return result;
     } catch (error) {
       console.error("Error saving report:", error);
       throw error;
@@ -150,6 +191,12 @@ function EditReportContent() {
 
   return (
     <>
+      {statusMessage && (
+        <div className="bg-blue-50 border-l-4 border-blue-500 p-4 mb-4">
+          <p className="text-sm text-blue-800">{statusMessage}</p>
+        </div>
+      )}
+
       {formData.metadata?.deleted && (
         <div className="bg-red-50 border-l-4 border-red-500 p-4 mb-4">
           <div className="flex">

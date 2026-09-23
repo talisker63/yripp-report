@@ -14,13 +14,13 @@ import { SectionE } from "@/components/forms/SectionE";
 import { SectionF } from "@/components/forms/SectionF";
 import { OfficeUseSection } from "@/components/forms/OfficeUseSection";
 import { Button } from "@/components/ui/Button";
-import { createDraftReport, updateDraftReport, submitReport, ReportDocument } from "@/lib/firebase/reports";
+import { createDraftReport, updateDraftReport, submitReport, ReportDocument, SaveReportResult } from "@/lib/firebase/reports";
 import { useAuth } from "@/lib/auth/context";
 import { createInitialFormData } from "@/lib/yripp/initialFormData";
 
 interface InterviewReportFormProps {
   initialData?: YRIPPFormData | ReportDocument;
-  onSave?: (data: YRIPPFormData, isSubmission: boolean) => Promise<void>;
+  onSave?: (data: YRIPPFormData, isSubmission: boolean) => Promise<SaveReportResult | void>;
   isReadOnly?: boolean;
   canSubmit?: boolean;
 }
@@ -42,8 +42,8 @@ export default function InterviewReportForm({
   const [currentSection, setCurrentSection] = useState(1);
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState("");
+  const [syncNotice, setSyncNotice] = useState("");
   const [showUnsavedModal, setShowUnsavedModal] = useState(false);
-  const [pendingNavigation, setPendingNavigation] = useState(false);
 
   const sections = [
     { id: 1, title: "A. Call Out and Arrival", component: "sectionA" },
@@ -94,6 +94,7 @@ export default function InterviewReportForm({
     
     setIsSaving(true);
     setSaveError("");
+    setSyncNotice("");
     
     try {
       const updatedData = {
@@ -104,10 +105,11 @@ export default function InterviewReportForm({
         },
       };
       
+      let result: SaveReportResult | void;
       if (onSave) {
-        await onSave(updatedData, false);
+        result = await onSave(updatedData, false);
       } else if ('id' in formData && formData.id) {
-        await updateDraftReport(
+        result = await updateDraftReport(
           formData.id,
           updatedData,
           user.id,
@@ -116,11 +118,15 @@ export default function InterviewReportForm({
           user.name || undefined
         );
       } else {
-        await createDraftReport(
+        result = await createDraftReport(
           updatedData,
           user.id,
           user.name || undefined
         );
+      }
+
+      if (result && !result.synced) {
+        setSyncNotice(result.syncError || "Saved locally. Will sync when online.");
       }
       
       router.push("/interview-report");
@@ -152,6 +158,7 @@ export default function InterviewReportForm({
 
     setIsSaving(true);
     setSaveError("");
+    setSyncNotice("");
 
     try {
       const updatedData = {
@@ -162,10 +169,11 @@ export default function InterviewReportForm({
         },
       };
 
+      let result: SaveReportResult | void;
       if (onSave) {
-        await onSave(updatedData, false);
+        result = await onSave(updatedData, false);
       } else if ('id' in formData && formData.id) {
-        await updateDraftReport(
+        result = await updateDraftReport(
           formData.id,
           updatedData,
           user.id,
@@ -174,13 +182,25 @@ export default function InterviewReportForm({
           user.name || undefined
         );
       } else {
-        const reportId = await createDraftReport(
+        result = await createDraftReport(
           updatedData,
           user.id,
           user.name || undefined
         );
-        setFormData({ ...updatedData, id: reportId } as ReportDocument);
-        router.push(`/interview-report/edit?id=${reportId}`);
+        if (result?.id) {
+          setFormData({ ...updatedData, id: result.id } as ReportDocument);
+          initialFormDataRef.current = { ...updatedData, id: result.id } as ReportDocument;
+          router.push(`/interview-report/edit?id=${result.id}`);
+        }
+      }
+
+      if (result && !result.synced) {
+        setSyncNotice(result.syncError || "Saved locally. Will sync when online.");
+      } else if (result?.synced) {
+        setSyncNotice("Saved and synced.");
+        initialFormDataRef.current = ('id' in formData && formData.id)
+          ? { ...updatedData, id: formData.id } as ReportDocument
+          : { ...updatedData, id: result.id } as ReportDocument;
       }
     } catch (error: any) {
       setSaveError(error.message || "Failed to save draft");
@@ -219,11 +239,6 @@ export default function InterviewReportForm({
     if (!data.sectionA?.offenceOccurredInDHHS) missingQuestions.push("10. Did the offence occur in DHHS residential unit?");
 
     if (!data.sectionBPartA?.preferredFirstName?.trim()) missingQuestions.push("11. YP's preferred first name");
-    const immediateNeeds = data.sectionBPartA?.immediateNeeds;
-    if (!immediateNeeds || immediateNeeds.length === 0 || 
-        !immediateNeeds.some(need => need.required || need.provided || need.notProvided)) {
-      missingQuestions.push("12. Does YP have any immediate needs?");
-    }
     if (!data.sectionBPartA?.satisfiedWithPoliceTreatment) missingQuestions.push("13. Is the YP satisfied with police treatment before IP arrived?");
     if (!data.sectionBPartA?.gender) missingQuestions.push("14. Gender");
     if (!data.sectionBPartA?.age?.trim()) missingQuestions.push("15. Age");
@@ -468,6 +483,11 @@ export default function InterviewReportForm({
       )}
 
       <div className="max-w-4xl mx-auto p-4 pb-20">
+        {syncNotice && (
+          <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg text-blue-800 text-sm">
+            {syncNotice}
+          </div>
+        )}
         {saveError && (
           <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
             <div className="font-semibold mb-2">Please complete all mandatory questions before submitting.</div>

@@ -79,6 +79,33 @@ service cloud.firestore {
                     );
     }
     
+    match /reportSummaries/{reportId} {
+      allow read: if isAuthenticated() && (
+                      (resource.data.ipId == request.auth.uid) ||
+                      (isStaff() && resource.data.submitted == true)
+                   );
+      
+      allow list: if isAuthenticated();
+      
+      allow create: if isAuthenticated() &&
+                       request.resource.data.keys().hasAll([
+                         'id', 'ipId', 'submitted', 'draft', 'updatedAt', 'createdAt',
+                         'interviewDate', 'independentPersonName', 'policeStation', 'editHistoryCount', 'deleted'
+                       ]) &&
+                       (
+                         request.resource.data.ipId == request.auth.uid ||
+                         (isStaff() && request.resource.data.submitted == true)
+                       );
+      
+      allow update: if isAuthenticated() && (
+                       (resource.data.ipId == request.auth.uid &&
+                        request.resource.data.ipId == resource.data.ipId) ||
+                       (isStaff() &&
+                        resource.data.submitted == true &&
+                        request.resource.data.ipId == resource.data.ipId)
+                    );
+    }
+    
     match /users/{userId} {
       allow read: if isAuthenticated() && (
                       request.auth.uid == userId ||
